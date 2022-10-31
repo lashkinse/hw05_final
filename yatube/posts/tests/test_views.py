@@ -1,15 +1,37 @@
+import shutil
+import tempfile
+
 from django import forms
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
+from django.db import IntegrityError
 
-from posts.models import Group, Post, User
+from posts.models import Group, Post, User, Follow
 
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostViewTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username="user")
+        small_gif = (
+            b"\x47\x49\x46\x38\x39\x61\x02\x00"
+            b"\x01\x00\x80\x00\x00\x00\x00\x00"
+            b"\xFF\xFF\xFF\x21\xF9\x04\x00\x00"
+            b"\x00\x00\x00\x2C\x00\x00\x00\x00"
+            b"\x02\x00\x01\x00\x00\x02\x02\x0C"
+            b"\x0A\x00\x3B"
+        )
+        uploaded = SimpleUploadedFile(
+            name="small.gif", content=small_gif, content_type="image/gif"
+        )
         cls.group_1 = Group.objects.create(
             title="Тестовая группа 1",
             slug="test1",
@@ -21,7 +43,10 @@ class PostViewTests(TestCase):
             description="Тестовое описание",
         )
         cls.post = Post.objects.create(
-            text="Тестовый пост", author=cls.user, group=cls.group_1
+            text="Тестовый пост",
+            author=cls.user,
+            group=cls.group_1,
+            image=uploaded,
         )
         cls.url_index = reverse("posts:index")
         cls.url_group_1 = reverse(
@@ -40,6 +65,11 @@ class PostViewTests(TestCase):
             "posts:post_edit", kwargs={"post_id": cls.post.id}
         )
         cls.url_create_post = reverse("posts:create_post")
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.authorized_client = Client()
@@ -70,9 +100,11 @@ class PostViewTests(TestCase):
         Шаблон index сформирован с правильным контекстом
         """
         response = self.authorized_client.get(self.url_index)
-        first_post = response.context["page_obj"].object_list[0]
-        self.assertEqual(first_post.author, self.user)
-        self.assertEqual(first_post, self.post)
+        self.assertIn("page_obj", response.context)
+        post = response.context["page_obj"].object_list[0]
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
+        self.assertEqual(post.image, self.post.image)
 
     def test_views_context(self):
         """
@@ -85,10 +117,11 @@ class PostViewTests(TestCase):
         for url in urls:
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
-                first_post = response.context["page_obj"].object_list[0]
-                self.assertEqual(first_post.author, self.user)
-                self.assertEqual(first_post.group, self.group_1)
-                self.assertEqual(first_post, self.post)
+                self.assertIn("page_obj", response.context)
+                post = response.context["page_obj"].object_list[0]
+                self.assertEqual(post.author, self.post.author)
+                self.assertEqual(post.group, self.post.group)
+                self.assertEqual(post.image, self.post.image)
 
     def test_views_detail_context(self):
         """
@@ -96,8 +129,10 @@ class PostViewTests(TestCase):
         """
         response = self.authorized_client.get(self.url_post_detail)
         self.assertIn("post", response.context)
-        self.assertEqual(response.context["post"].author, self.user)
-        self.assertEqual(response.context["post"], self.post)
+        post = response.context["post"]
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
+        self.assertEqual(post.image, self.post.image)
 
     def test_views_create_context(self):
         """
@@ -110,6 +145,7 @@ class PostViewTests(TestCase):
         }
         for value, expected in form_fields.items():
             with self.subTest(value=value):
+                self.assertIn("form", response.context)
                 form_field = response.context["form"].fields.get(value)
                 self.assertIsInstance(form_field, expected)
 
@@ -125,11 +161,14 @@ class PostViewTests(TestCase):
         response = self.authorized_client.get(self.url_post_edit)
         for value, expected in form_fields.items():
             with self.subTest(value=value):
+                self.assertIn("form", response.context)
                 form_field = response.context["form"].fields.get(value)
                 self.assertIsInstance(form_field, expected)
         self.assertIn("post", response.context)
-        self.assertEqual(response.context["post"].author, self.user)
-        self.assertEqual(response.context["post"], self.post)
+        post = response.context["post"]
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
+        self.assertEqual(post.image, self.post.image)
 
     def test_group_post_show_correct(self):
         """
@@ -142,7 +181,129 @@ class PostViewTests(TestCase):
         )
         for address in urls:
             response = self.authorized_client.get(address)
+            self.assertIn("page_obj", response.context)
             self.assertIn(self.post, response.context["page_obj"])
 
         response = self.authorized_client.get(self.url_group_2)
+        self.assertIn("page_obj", response.context)
         self.assertNotIn(self.post, response.context["page_obj"])
+
+
+class PostCacheTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create_user(username="user")
+        cls.post = Post.objects.create(
+            text="Тестовый пост",
+            author=cls.user,
+        )
+
+    def setUp(self):
+        self.guest_client = Client()
+
+    def test_index_cache(self):
+        """
+        Тестирование кэша
+        """
+        posts_count = Post.objects.count()
+        response = self.guest_client.get(reverse("posts:index"))
+        cached_content = response.content
+        self.post.delete()
+        self.assertEqual(Post.objects.count(), posts_count - 1)
+        response = self.guest_client.get(reverse("posts:index"))
+        self.assertIn(cached_content, response.content)
+        cache.clear()
+        response = self.guest_client.get(reverse("posts:index"))
+        self.assertNotEqual(cached_content, response.content)
+
+
+class PostFollowTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create_user(username="user")
+        cls.author = User.objects.create_user(username="author")
+        cls.unfollower = User.objects.create_user(username="unfollower")
+        cls.post = Post.objects.create(
+            author=cls.author,
+            text="Тестовый пост",
+        )
+
+    def setUp(self):
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.user)
+        self.unfollower_client = Client()
+        self.unfollower_client.force_login(self.unfollower)
+
+    def test_follow_as_user(self):
+        """
+        Пользователь может подписываться на других пользователей
+        """
+        follow_count = Follow.objects.count()
+        response = self.authorized_client.post(
+            reverse(
+                "posts:profile_follow",
+                kwargs={"username": self.author.username},
+            )
+        )
+        self.assertRedirects(
+            response,
+            reverse(
+                "posts:profile", kwargs={"username": self.author.username}
+            ),
+        )
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
+        self.assertEqual(
+            Follow.objects.filter(user=self.user, author=self.author).exists(),
+            True,
+        )
+
+    def test_unfollow_as_user(self):
+        """
+        Пользователь может отписываться от других пользователей
+        """
+        response = self.authorized_client.post(
+            reverse(
+                "posts:profile_follow",
+                kwargs={"username": self.author.username},
+            )
+        )
+        follow_count = Follow.objects.count()
+        response = self.authorized_client.post(
+            reverse(
+                "posts:profile_unfollow",
+                kwargs={"username": self.author.username},
+            )
+        )
+        self.assertRedirects(
+            response,
+            reverse(
+                "posts:profile", kwargs={"username": self.author.username}
+            ),
+        )
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
+        self.assertEqual(
+            Follow.objects.filter(user=self.user, author=self.author).exists(),
+            False,
+        )
+
+    def test_new_post_following_author(self):
+        """
+        Новая запись пользователя появляется в ленте тех, кто на него подписан
+        и не появляется в ленте тех, кто не подписан
+        """
+        Follow.objects.create(user=self.user, author=self.author)
+        post = Post.objects.create(author=self.author, text="Новый пост")
+
+        response = self.authorized_client.get(reverse("posts:follow_index"))
+        self.assertIn("page_obj", response.context)
+        self.assertIn(post, response.context["page_obj"])
+
+        response = self.unfollower_client.get(reverse("posts:follow_index"))
+        self.assertNotEqual(post, response.context)
+
+    def test_no_self_follow(self):
+        constraint_name = "prevent_self_follow"
+        with self.assertRaisesMessage(IntegrityError, constraint_name):
+            Follow.objects.create(user=self.user, author=self.user)

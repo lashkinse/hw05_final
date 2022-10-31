@@ -8,6 +8,7 @@
         {% endif %}
         <li>Дата публикации: {{ post.pub_date|date:"d E Y" }}</li>
     </ul>
+    {% include 'posts/includes/post_image.html' %}
     <p>{{ post.text }}</p>
     <a href="{% url 'posts:post_detail' post.pk %}">подробная информация</a>
 </article>

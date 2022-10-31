@@ -59,10 +59,3 @@ class PostUrlTests(TestCase):
                 self.assertRedirects(
                     response_guest, f"/auth/login/?next={address}"
                 )
-
-    def test_unexisting_page(self):
-        """
-        Проверка доступа к несуществующей странице
-        """
-        response = self.guest_client.get("/unexisting_page/")
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)

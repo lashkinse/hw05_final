@@ -23,10 +23,12 @@
             </ul>
         </aside>
         <article class="col-12 col-md-9">
+            {% include 'posts/includes/post_image.html' %}
             <p>{{ post.text }}</p>
             {% if user_can_edit %}
                 <a class="btn btn-primary" href="{% url 'posts:post_edit' post.id %}">редактировать запись</a>
             {% endif %}
+            {% include "posts/includes/comment.html" %}
         </article>
     </div>
 {% endblock content %}
