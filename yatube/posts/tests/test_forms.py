@@ -8,8 +8,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.forms import PostForm, CommentForm
-from posts.models import Group, Post, User, Comment
+from posts.forms import PostForm
+from posts.models import Post, User, Comment
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -155,7 +155,7 @@ class CommentFormTest(TestCase):
         form_data = {
             "text": "Новый комментарий",
         }
-        response = self.guest_client.post(
+        self.guest_client.post(
             reverse("posts:add_comment", kwargs={"post_id": self.post.id}),
             data=form_data,
             follow=True,

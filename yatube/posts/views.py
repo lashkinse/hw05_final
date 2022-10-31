@@ -1,6 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 
 from posts.models import Post, Group, User, Follow
 from .forms import PostForm, CommentForm
@@ -104,7 +103,7 @@ def add_comment(request, post_id):
         comment.author = request.user
         comment.post = post
         comment.save()
-    return redirect("posts:post_detail", post_id=post_id)
+    return redirect(template, post_id=post_id)
 
 
 @login_required
