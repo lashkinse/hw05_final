@@ -1,7 +1,6 @@
-from django.db import models
-from django.contrib.auth import get_user_model
-
 from core.models import CreatedModel
+from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 
@@ -40,9 +39,10 @@ class Post(CreatedModel):
         help_text="Группа, к которой будет относиться пост",
     )
     image = models.ImageField(
-        "Картинка",
         upload_to="posts/",
+        null=True,
         blank=True,
+        verbose_name="Картинка",
         help_text="Добавить картинку",
     )
 
@@ -74,7 +74,6 @@ class Comment(CreatedModel):
     )
 
     class Meta:
-        ordering = ("-created",)
         verbose_name = "Комментарий"
         verbose_name_plural = "Комментарии"
 
@@ -94,11 +93,10 @@ class Follow(CreatedModel):
     )
 
     class Meta:
-        ordering = ("-created",)
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
 
-        constraints = [
+        constraints = (
             models.UniqueConstraint(
                 name="unique_relationships",
                 fields=["user", "author"],
@@ -107,4 +105,4 @@ class Follow(CreatedModel):
                 name="prevent_self_follow",
                 check=~models.Q(user=models.F("author")),
             ),
-        ]
+        )

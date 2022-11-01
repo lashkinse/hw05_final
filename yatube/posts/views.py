@@ -1,11 +1,13 @@
-from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.cache import cache_page
+from posts.models import Follow, Group, Post, User
 
-from posts.models import Post, Group, User, Follow
-from .forms import PostForm, CommentForm
+from .forms import CommentForm, PostForm
 from .utils import paginate_page
 
 
+@cache_page(20, key_prefix="index_page")
 def index(request):
     template = "posts/index.html"
     posts = Post.objects.select_related("group", "author")
@@ -33,11 +35,10 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     posts = author.posts.select_related("group")
     page_obj = paginate_page(request, posts)
-    following = False
-    if request.user.is_authenticated:
-        following = Follow.objects.filter(
-            user=request.user, author=author
-        ).exists()
+    following = (
+        request.user.is_authenticated
+        and Follow.objects.filter(user=request.user, author=author).exists()
+    )
     context = {"author": author, "page_obj": page_obj, "following": following}
     return render(request, template, context)
 
@@ -50,7 +51,6 @@ def post_detail(request, post_id):
     context = {
         "post": post,
         "author": post.author,
-        "user_can_edit": request.user == post.author,
         "form": form,
         "comments": comments,
     }
@@ -60,7 +60,7 @@ def post_detail(request, post_id):
 @login_required
 def create_post(request):
     template = "posts/create_post.html"
-    form = PostForm(request.POST or None, files=request.FILES)
+    form = PostForm(request.POST or None, files=request.FILES or None)
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -120,8 +120,14 @@ def follow_index(request):
 @login_required
 def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
-    if author != request.user:
-        Follow.objects.get_or_create(user=request.user, author=author)
+    can_following = (
+        author != request.user
+        and not Follow.objects.filter(
+            user=request.user, author=author
+        ).exists()
+    )
+    if can_following:
+        Follow.objects.create(user=request.user, author=author)
     return redirect("posts:profile", username)
 
 

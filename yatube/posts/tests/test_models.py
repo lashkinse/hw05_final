@@ -1,5 +1,4 @@
 from django.test import TestCase
-
 from posts.models import Group, Post, User
 
 
@@ -18,7 +17,6 @@ class PostModelTest(TestCase):
         )
 
     def test_models_have_correct_object_names(self):
-        """Проверяем, что у моделей корректно работает __str__."""
         group = self.group
         self.assertEqual(
             str(group), group.title, "У групп неправильный __str__"

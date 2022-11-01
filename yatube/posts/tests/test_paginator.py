@@ -1,6 +1,5 @@
 from django.test import Client, TestCase
 from django.urls import reverse
-
 from posts.models import Group, Post, User
 
 
@@ -14,12 +13,16 @@ class PaginatorViewsTest(TestCase):
             slug="test",
             description="Тестовое описание",
         )
-        for i in range(13):
-            Post.objects.create(
-                text=f"Тестовый пост номер{str(i)}",
-                author=cls.user,
-                group=cls.group,
-            )
+        Post.objects.bulk_create(
+            [
+                Post(
+                    text=f"Тестовый пост номер{str(i)}",
+                    author=cls.user,
+                    group=cls.group,
+                )
+                for i in range(13)
+            ]
+        )
         cls.urls = (
             reverse("posts:index"),
             reverse("posts:group_list", kwargs={"slug": cls.group.slug}),
@@ -34,17 +37,19 @@ class PaginatorViewsTest(TestCase):
         Проверка: количество постов на первой странице равно 10
         """
         for address in self.urls:
-            response = self.guest_client.get(address)
-            self.assertEqual(
-                len(response.context.get("page_obj").object_list), 10
-            )
+            with self.subTest(address=address):
+                response = self.guest_client.get(address)
+                self.assertEqual(
+                    len(response.context.get("page_obj").object_list), 10
+                )
 
     def test_second_page_contains_three_records(self):
         """
         Проверка: на второй странице должно быть три поста
         """
         for address in self.urls:
-            response = self.guest_client.get(address + "?page=2")
-            self.assertEqual(
-                len(response.context.get("page_obj").object_list), 3
-            )
+            with self.subTest(address=address):
+                response = self.guest_client.get(address + "?page=2")
+                self.assertEqual(
+                    len(response.context.get("page_obj").object_list), 3
+                )

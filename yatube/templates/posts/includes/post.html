@@ -1,12 +1,14 @@
 <article>
   <ul>
-    {% if request.path == '/' or '/group' in request.path %}
-      <li>
-        Автор:
-        {{ post.author.get_full_name }}
-        <a href="{% url 'posts:profile' post.author.username %}">Все посты пользователя</a>
-      </li>
-    {% endif %}
+    {% with request.resolver_match.view_name as view_name %}
+      {% if view_name == 'posts:index' or view_name == 'posts:group_list' %}
+        <li>
+          Автор:
+          {{ post.author.get_full_name }}
+          <a href="{% url 'posts:profile' post.author.username %}">Все посты пользователя</a>
+        </li>
+      {% endif %}
+    {% endwith %}
     <li>Дата публикации:
       {{ post.pub_date|date:"d E Y" }}</li>
   </ul>
