@@ -1,17 +1,19 @@
 <article>
-    <ul>
-        {% if request.path == '/' or '/group' in request.path %}
-            <li>
-                Автор: {{ post.author.get_full_name }}
-                <a href="{% url 'posts:profile' post.author.username %}">Все посты пользователя</a>
-            </li>
-        {% endif %}
-        <li>Дата публикации: {{ post.pub_date|date:"d E Y" }}</li>
-    </ul>
-    {% include 'posts/includes/post_image.html' %}
-    <p>{{ post.text }}</p>
-    <a href="{% url 'posts:post_detail' post.pk %}">подробная информация</a>
+  <ul>
+    {% if request.path == '/' or '/group' in request.path %}
+      <li>
+        Автор:
+        {{ post.author.get_full_name }}
+        <a href="{% url 'posts:profile' post.author.username %}">Все посты пользователя</a>
+      </li>
+    {% endif %}
+    <li>Дата публикации:
+      {{ post.pub_date|date:"d E Y" }}</li>
+  </ul>
+  {% include 'posts/includes/post_image.html' %}
+  <p>{{ post.text }}</p>
+  <a href="{% url 'posts:post_detail' post.pk %}">подробная информация</a>
 </article>
 {% if post.group %}
-    <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
+  <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
 {% endif %}
