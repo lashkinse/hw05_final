@@ -48,8 +48,5 @@ python manage.py createsuperuser
 python3 manage.py runserver
 ```
 
-## Технологии
-Python 3.9, Django 2.2.16, SQLite
-
 ## Авторы
 Лашкин Сергей
