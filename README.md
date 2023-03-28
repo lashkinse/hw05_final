@@ -49,7 +49,7 @@ python3 manage.py runserver
 ```
 
 ## Технологии
-Python 3.7, Django 2.2.19, SQLite
+Python 3.9, Django 2.2.16, SQLite
 
 ## Авторы
 Лашкин Сергей
