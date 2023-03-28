@@ -31,14 +31,21 @@ python3 -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Выполнить миграции:
+
+```
+python3 manage.py migrate
+```
+
 Создать пользователя:
 ```
 python manage.py createsuperuser
 ```
 
-Запустить сервер
+Запустить проект:
+
 ```
-python manage.py runserver
+python3 manage.py runserver
 ```
 
 ## Технологии
