@@ -12,13 +12,13 @@
 Cоздать и активировать виртуальное окружение:
 
 ```
-python3 -m venv env
+python3 -m venv venv
 ```
 
 * Если у вас Linux/macOS
 
     ```
-    source env/bin/activate
+    source venv/bin/activate
     ```
 
 * Если у вас Windows
