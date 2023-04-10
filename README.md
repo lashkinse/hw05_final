@@ -21,17 +21,17 @@ python3 -m venv env
     source env/bin/activate
     ```
 
-* Если у вас windows
+* Если у вас Windows
 
     ```
-    source env/scripts/activate
+    .\venv\Scripts\activate
     ```
+
+Установить зависимости из файла requirements.txt:
 
 ```
 python3 -m pip install --upgrade pip
 ```
-
-Установить зависимости из файла requirements.txt:
 
 ```
 pip install -r requirements.txt
