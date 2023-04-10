@@ -12,7 +12,7 @@
 Cоздать и активировать виртуальное окружение:
 
 ```
-python3 -m venv venv
+python -m venv venv
 ```
 
 * Если у вас Linux/macOS
@@ -30,7 +30,7 @@ python3 -m venv venv
 Установить зависимости из файла requirements.txt:
 
 ```
-python3 -m pip install --upgrade pip
+python -m pip install --upgrade pip
 ```
 
 ```
@@ -40,7 +40,7 @@ pip install -r requirements.txt
 Выполнить миграции:
 
 ```
-python3 manage.py migrate
+python manage.py migrate
 ```
 
 Создать пользователя:
@@ -51,5 +51,5 @@ python manage.py createsuperuser
 Запустить проект:
 
 ```
-python3 manage.py runserver
+python manage.py runserver
 ```
